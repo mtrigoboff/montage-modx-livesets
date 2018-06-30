@@ -1,0 +1,8 @@
+syntax: glob
+*.X3A
+*.X7U
+pmf.py
+printMotifFile.py
+.vs/livesets/v15/.suo
+__pycache__/printMotifFile.cpython-36.pyc
+pmf.pyproj
