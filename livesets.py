@@ -37,10 +37,11 @@ PATTERN_ABBREV =	'Pt'
 
 BLOCK_HDR_LGTH =				   12
 CATALOG_ENTRY_LGTH =			 	8
-DATA_HDR_LGTH =						8
-DLST_DATA_LGTH =				 7281
+DATA_HDR_LGTH =						8	# block header length
+DATA_FTR_LGTH =					   16	# block footer length
+DLST_DATA_LGTH =			   0x1C59	# leaving out 16-byte block footer
 DLST_DATA_HDR_LGTH =				8
-DLST_PAGE_LGTH =				  453
+DLST_PAGE_LGTH =				0x1C5
 ENTRY_HDR_LGTH =				 	8
 ENTRY_FIXED_SIZE_DATA_LGTH =	   22
 FILE_HDR_LGTH =					   64
@@ -68,16 +69,20 @@ def printPerformance(entryName, data):
 	print(entryName, len(data))
 
 def printLiveSetBlock(entryName, data):
+	assert len(data) == DLST_DATA_LGTH + DATA_FTR_LGTH
 	print(entryName)
-	pageOffset = 0
-	while pageOffset < len(data):
-		bPageName = data[pageOffset + 25 : pageOffset + 25 + MONTAGE_NAME_MAX_LGTH]
+	pageOffset = 9
+	while pageOffset < len(data) - DATA_FTR_LGTH:
+		bPageName = data[pageOffset + 16 : pageOffset + 16 + MONTAGE_NAME_MAX_LGTH]
 		print('   ' + strFromBytes(bPageName))
-		perfOffset = pageOffset + 25 + MONTAGE_NAME_MAX_LGTH + 23
+		perfOffset = pageOffset + 16 + MONTAGE_NAME_MAX_LGTH + 23
 		for i in range(0, 16):
-			perfBytes = struct.unpack('> B B B B B', data[perfOffset : perfOffset + 5])
+			_, perfBank, perfNum, _, perfPresent = \
+				struct.unpack('> B B B B ?', data[perfOffset : perfOffset + 5])
+			perfBank += 1
+			perfNum += 1
 			print('      ', end='')
-			print(perfBytes)
+			print(perfBank, perfNum, perfPresent)
 			perfOffset += PERF_DATA_LGTH
 		pageOffset += DLST_PAGE_LGTH
 
