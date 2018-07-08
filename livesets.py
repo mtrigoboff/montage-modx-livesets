@@ -35,12 +35,17 @@ VERSION = '0.1'
 SONG_ABBREV =		'Sg'
 PATTERN_ABBREV =	'Pt'
 
-FILE_HDR_LGTH =						64
-CATALOG_ENTRY_LGTH =			 	 8
-BLOCK_HDR_LGTH =				 	12
-ENTRY_HDR_LGTH =				 	 8
-DATA_HDR_LGTH =						 8
-ENTRY_FIXED_SIZE_DATA_LGTH =	 	22
+BLOCK_HDR_LGTH =				   12
+CATALOG_ENTRY_LGTH =			 	8
+DATA_HDR_LGTH =						8
+DLST_DATA_LGTH =				 7281
+DLST_DATA_HDR_LGTH =				8
+DLST_PAGE_LGTH =				  453
+ENTRY_HDR_LGTH =				 	8
+ENTRY_FIXED_SIZE_DATA_LGTH =	   22
+FILE_HDR_LGTH =					   64
+MONTAGE_NAME_MAX_LGTH =			   20
+PERF_DATA_LGTH =				   27
 
 FILE_HDR_ID =		b'YAMAHA-YSFC'
 BLOCK_ENTRY_ID =	b'Entr'
@@ -57,20 +62,24 @@ def fileVersionPreMontage():
 	return fileVersion[0] < 4
 
 def strFromBytes(bytes):
-	strBytes = struct.unpack('> 25x 16s ' + str(len(data) - 41) + 'x', data)
-	strBytesDecoded = strBytes.decode('ascii')
-	return strBytesDecoded.rstrip('\x00').split('\x00')[0]
+	return bytes.decode('ascii').rstrip('\x00').split('\x00')[0]
 
 def printPerformance(entryName, data):
 	print(entryName, len(data))
 
 def printLiveSetBlock(entryName, data):
 	print(entryName)
-	bPageName = struct.unpack('> 25x 16s ' + str(len(data) - 41) + 'x', data)
-	pageNameDecoded = bPageName[0].decode('ascii')
-	pageName = pageNameDecoded.rstrip('\x00').split('\x00')[0]
-	print('\t' + strFromBytes(bPageName))
-	pass
+	pageOffset = 0
+	while pageOffset < len(data):
+		bPageName = data[pageOffset + 25 : pageOffset + 25 + MONTAGE_NAME_MAX_LGTH]
+		print('   ' + strFromBytes(bPageName))
+		perfOffset = pageOffset + 25 + MONTAGE_NAME_MAX_LGTH + 23
+		for i in range(0, 16):
+			perfBytes = struct.unpack('> B B B B B', data[perfOffset : perfOffset + 5])
+			print('      ', end='')
+			print(perfBytes)
+			perfOffset += PERF_DATA_LGTH
+		pageOffset += DLST_PAGE_LGTH
 
 class BlockSpec:
 	def __init__(self, ident, name, doFn, needsData):
@@ -206,7 +215,8 @@ else:
 		itemFlags = sys.argv[1:-1]
 	else:
 		itemFlags = ()
-	try:
-		printMontageFile(sys.argv[-1], itemFlags)
-	except Exception as e:
-		print('file problem (%s)' % e, file = sys.stderr)
+	#try:
+	#	printMontageFile(sys.argv[-1], itemFlags)
+	#except Exception as e:
+	#	print('file problem (%s)' % e, file = sys.stderr)
+	printMontageFile(sys.argv[-1], itemFlags)
