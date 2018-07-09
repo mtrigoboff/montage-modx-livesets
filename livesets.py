@@ -38,8 +38,7 @@ PATTERN_ABBREV =	'Pt'
 BLOCK_HDR_LGTH =				   12
 CATALOG_ENTRY_LGTH =			 	8
 DATA_HDR_LGTH =						8	# block header length
-DATA_FTR_LGTH =					   16	# block footer length
-DLST_DATA_LGTH =			   0x1C59	# leaving out 16-byte block footer
+DLST_DATA_LGTH =			   0x1C69
 DLST_DATA_HDR_LGTH =				8
 DLST_PAGE_LGTH =				0x1C5
 ENTRY_HDR_LGTH =				 	8
@@ -52,8 +51,12 @@ FILE_HDR_ID =		b'YAMAHA-YSFC'
 BLOCK_ENTRY_ID =	b'Entr'
 BLOCK_DATA_ID =		b'Data'
 
-BANKS = ('PRE1', 'PRE2', 'PRE3', 'PRE4', 'PRE5', 'PRE6', 'PRE7', 'PRE8',
-		 'USR1', 'USR2', 'USR3', 'USR4', 'GM',   'GMDR', 'PDR',  'UDR')
+#bankNumbers = collections.Dict((
+#	('PRE1',  BlockSpec(b'ELST',	'Live Set Blocks',	printLiveSetBlock,	True)),		\
+#	#('pf',  BlockSpec(b'EPFM',	'Performances',		printPerformance,	True)),		\
+#	))
+#presetBankNames = ('PRE1', 'PRE2', 'PRE3', 'PRE4', 'PRE5', 'PRE6', 'PRE7', 'PRE8')
+#		 'USR1', 'USR2', 'USR3', 'USR4', 'GM',   'GMDR', 'PDR',  'UDR')
 
 # globals (this is just here for documentation)
 global catalog, fileVersion, inputStream, mixingVoices, \
@@ -69,20 +72,32 @@ def printPerformance(entryName, data):
 	print(entryName, len(data))
 
 def printLiveSetBlock(entryName, data):
-	assert len(data) == DLST_DATA_LGTH + DATA_FTR_LGTH
+	assert len(data) == DLST_DATA_LGTH
 	print(entryName)
-	pageOffset = 9
-	while pageOffset < len(data) - DATA_FTR_LGTH:
-		bPageName = data[pageOffset + 16 : pageOffset + 16 + MONTAGE_NAME_MAX_LGTH]
+	pageOffset = 25
+	while pageOffset < len(data):
+		bPageName = data[pageOffset : pageOffset + MONTAGE_NAME_MAX_LGTH]
 		print('   ' + strFromBytes(bPageName))
-		perfOffset = pageOffset + 16 + MONTAGE_NAME_MAX_LGTH + 23
+		perfOffset = pageOffset + MONTAGE_NAME_MAX_LGTH + 23
 		for i in range(0, 16):
 			_, perfBank, perfNum, _, perfPresent = \
 				struct.unpack('> B B B B ?', data[perfOffset : perfOffset + 5])
 			perfBank += 1
 			perfNum += 1
 			print('      ', end='')
-			print(perfBank, perfNum, perfPresent)
+			if perfPresent:
+				if perfBank >= 0 and perfBank < 32:
+					print('PRE' + str(perfBank), end=' ')
+				elif perfBank >= 33 and perfBank < 38:
+					print('USR' + str(perfBank - 32), end=' ')
+				elif perfBank >= 48 and perfBank < 56:
+					print('LIB' + str(perfBank - 47), end=' ')
+				else:
+					print('???', end=' ')
+				print(perfNum)
+			else:
+				print('---')
+			#print(perfBank, perfNum, perfPresent)
 			perfOffset += PERF_DATA_LGTH
 		pageOffset += DLST_PAGE_LGTH
 
@@ -116,14 +131,14 @@ def doBlock(blockSpec):
 	
 	print(blockSpec.name)
 
-	for _ in range(0, nEntries):
+	for i in range(0, nEntries):
 		entryHdr = inputStream.read(ENTRY_HDR_LGTH + ENTRY_FIXED_SIZE_DATA_LGTH)
 		entryId, entryLgth, dataOffset = \
 			struct.unpack('> 4s I 4x I 14x', entryHdr)
 		entryStrs = inputStream.read(entryLgth - ENTRY_FIXED_SIZE_DATA_LGTH)
 		assert entryId == BLOCK_ENTRY_ID, BLOCK_ENTRY_ID
-		entryStrsDecoded = entryStrs.decode('ascii')
-		entryName = entryStrsDecoded.rstrip('\x00').split('\x00')[-1]
+		entryStrsDecoded = entryStrs[4:].decode('ascii')
+		entryName = entryStrsDecoded.rstrip('\x00').split('\x00')
 		if blockSpec.needsData:
 			entryPosn = inputStream.tell()
 			dataIdent = bytearray(blockSpec.ident)
