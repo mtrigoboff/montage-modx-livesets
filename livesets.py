@@ -35,21 +35,20 @@ VERSION = '0.1'
 SONG_ABBREV =		'Sg'
 PATTERN_ABBREV =	'Pt'
 
+FILE_HDR_ID =		b'YAMAHA-YSFC'
+BLOCK_ENTRY_ID =	b'Entr'
+BLOCK_DATA_ID =		b'Data'
+
 BLOCK_HDR_LGTH =				   12
 CATALOG_ENTRY_LGTH =			 	8
 DATA_HDR_LGTH =						8	# block header length
 DLST_DATA_LGTH =			   0x1C69
 DLST_DATA_HDR_LGTH =				8
 DLST_PAGE_LGTH =				0x1C5
-ENTRY_HDR_LGTH =				 	8
-ENTRY_FIXED_SIZE_DATA_LGTH =	   22
+ENTRY_HDR_LGTH =				   16
 FILE_HDR_LGTH =					   64
 MONTAGE_NAME_MAX_LGTH =			   20
 PERF_DATA_LGTH =				   27
-
-FILE_HDR_ID =		b'YAMAHA-YSFC'
-BLOCK_ENTRY_ID =	b'Entr'
-BLOCK_DATA_ID =		b'Data'
 
 #bankNumbers = collections.Dict((
 #	('PRE1',  BlockSpec(b'ELST',	'Live Set Blocks',	printLiveSetBlock,	True)),		\
@@ -80,24 +79,26 @@ def printLiveSetBlock(entryName, data):
 		print('   ' + strFromBytes(bPageName))
 		perfOffset = pageOffset + MONTAGE_NAME_MAX_LGTH + 23
 		for i in range(0, 16):
-			_, perfBank, perfNum, _, perfPresent = \
-				struct.unpack('> B B B B ?', data[perfOffset : perfOffset + 5])
-			perfBank += 1
-			perfNum += 1
+			#b0, perfBank, perfNum, b3, perfPresent = \
+			#	struct.unpack('> B B B B ?', data[perfOffset : perfOffset + 5])
+			bytes = struct.unpack('> B B B B ?', data[perfOffset : perfOffset + 5])
+			perfBank = bytes[1] + 1
+			perfNum = bytes[2] + 1
+			perfPresent = bytes[4]
 			print('      ', end='')
 			if perfPresent:
 				if perfBank >= 0 and perfBank < 32:
 					print('PRE' + str(perfBank), end=' ')
 				elif perfBank >= 33 and perfBank < 38:
 					print('USR' + str(perfBank - 32), end=' ')
-				elif perfBank >= 48 and perfBank < 56:
-					print('LIB' + str(perfBank - 47), end=' ')
+				elif perfBank >= 47 and perfBank < 55:
+					print('LIB' + str(perfBank - 46), end=' ')
 				else:
-					print('???', end=' ')
-				print(perfNum)
+					print('???', perfBank, end=' ')
+				print(perfNum, end=' ')
 			else:
-				print('---')
-			#print(perfBank, perfNum, perfPresent)
+				print('---', end=' ')
+			print(':', bytes)
 			perfOffset += PERF_DATA_LGTH
 		pageOffset += DLST_PAGE_LGTH
 
@@ -132,13 +133,14 @@ def doBlock(blockSpec):
 	print(blockSpec.name)
 
 	for i in range(0, nEntries):
-		entryHdr = inputStream.read(ENTRY_HDR_LGTH + ENTRY_FIXED_SIZE_DATA_LGTH)
-		entryId, entryLgth, dataOffset = \
-			struct.unpack('> 4s I 4x I 14x', entryHdr)
-		entryStrs = inputStream.read(entryLgth - ENTRY_FIXED_SIZE_DATA_LGTH)
+		entryHdr = inputStream.read(ENTRY_HDR_LGTH)
+		entryId, entryDataLgth, dataOffset = \
+			struct.unpack('> 4s I 4x I', entryHdr)
+		entryDataLgth -= 8
+		entryData = inputStream.read(entryDataLgth)
 		assert entryId == BLOCK_ENTRY_ID, BLOCK_ENTRY_ID
-		entryStrsDecoded = entryStrs[4:].decode('ascii')
-		entryName = entryStrsDecoded.rstrip('\x00').split('\x00')
+		entryNameBytes = entryData[14:].lstrip(b'\xFF').decode('ascii')
+		entryName = entryNameBytes.rstrip('\x00').split('\x00')[0]
 		if blockSpec.needsData:
 			entryPosn = inputStream.tell()
 			dataIdent = bytearray(blockSpec.ident)
