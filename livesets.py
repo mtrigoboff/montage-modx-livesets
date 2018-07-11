@@ -70,37 +70,45 @@ def strFromBytes(bytes):
 def printPerformance(entryName, data):
 	print(entryName, len(data))
 
-def printLiveSetBlock(entryName, data):
+def doLiveSetBlock(entryName, data):
 	assert len(data) == DLST_DATA_LGTH
 	print(entryName)
 	pageOffset = 25
+	pages = []			# each page will be of form: [page name, [[performance data (5 bytes)], ...]
 	while pageOffset < len(data):
-		bPageName = data[pageOffset : pageOffset + MONTAGE_NAME_MAX_LGTH]
-		print('   ' + strFromBytes(bPageName))
+		page = [strFromBytes(data[pageOffset : pageOffset + MONTAGE_NAME_MAX_LGTH])]
 		perfOffset = pageOffset + MONTAGE_NAME_MAX_LGTH + 23
+		pageEmpty = True
 		for i in range(0, 16):
-			#b0, perfBank, perfNum, b3, perfPresent = \
-			#	struct.unpack('> B B B B ?', data[perfOffset : perfOffset + 5])
-			bytes = struct.unpack('> B B B B ?', data[perfOffset : perfOffset + 5])
-			perfBank = bytes[1] + 1
-			perfNum = bytes[2] + 1
-			perfPresent = bytes[4]
+			perfData = struct.unpack('> B B B B ?', data[perfOffset : perfOffset + 5])
+			if perfData[4]:
+				pageEmpty = False
+			page.append(perfData)
+			perfOffset += PERF_DATA_LGTH
+		if not pageEmpty:
+			pages.append(page)
+		pageOffset += DLST_PAGE_LGTH
+	for page in pages:
+		print('   ' + page[0])
+		for perfData in page[1:]:
+			perfBank = perfData[1] + 1
+			perfNum = perfData[2] + 1
+			perfPresent = perfData[4]
 			print('      ', end='')
 			if perfPresent:
 				if perfBank >= 0 and perfBank < 32:
-					print('PRE' + str(perfBank), end=' ')
+					perfStr = 'PRE' + str(perfBank)
 				elif perfBank >= 33 and perfBank < 38:
-					print('USR' + str(perfBank - 32), end=' ')
+					perfStr = 'USR' + str(perfBank - 32)
 				elif perfBank >= 47 and perfBank < 55:
-					print('LIB' + str(perfBank - 46), end=' ')
+					perfStr = 'LIB' + str(perfBank - 46)
 				else:
-					print('???', perfBank, end=' ')
-				print(perfNum, end=' ')
+					perfStr = '???'
+				print('{:5}{:3}: {}' \
+					.format(perfStr, perfNum, \
+						'{0[0]:3} {0[1]:3} {0[2]:3} {0[3]:3} {0[4]:3}'.format(perfData)))
 			else:
-				print('---', end=' ')
-			print(':', bytes)
-			perfOffset += PERF_DATA_LGTH
-		pageOffset += DLST_PAGE_LGTH
+				print('---')
 
 class BlockSpec:
 	def __init__(self, ident, name, doFn, needsData):
@@ -111,7 +119,7 @@ class BlockSpec:
 
 # when printing out all blocks, they will print out in this order
 blockSpecs = collections.OrderedDict((
-	('ls',  BlockSpec(b'ELST',	'Live Set Blocks',	printLiveSetBlock,	True)),		\
+	('ls',  BlockSpec(b'ELST',	'Live Set Blocks',	doLiveSetBlock,	True)),		\
 	#('pf',  BlockSpec(b'EPFM',	'Performances',		printPerformance,	True)),		\
 	))
 
