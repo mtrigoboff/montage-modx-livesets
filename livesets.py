@@ -59,9 +59,6 @@ PERF_DATA_LGTH =				   27
 #presetBankNames = ('PRE1', 'PRE2', 'PRE3', 'PRE4', 'PRE5', 'PRE6', 'PRE7', 'PRE8')
 #		 'USR1', 'USR2', 'USR3', 'USR4', 'GM',   'GMDR', 'PDR',  'UDR')
 
-def fileVersionPreMontage():
-	return fileVersion[0] < 4
-
 def strFromBytes(bytes):
 	return bytes.decode('ascii').rstrip('\x00').split('\x00')[0]
 
