@@ -36,8 +36,8 @@ SONG_ABBREV =		'Sg'
 PATTERN_ABBREV =	'Pt'
 
 FILE_HDR_ID =		b'YAMAHA-YSFC'
-BLOCK_ENTRY_ID =	b'Entr'
-BLOCK_DATA_ID =		b'Data'
+ENTRY_BLOCK_ID =	b'Entr'
+DATA_BLOCK_ID =		b'Data'
 
 BLOCK_HDR_LGTH =				   12
 CATALOG_ENTRY_LGTH =			 	8
@@ -57,30 +57,36 @@ PERF_DATA_LGTH =				   27
 #presetBankNames = ('PRE1', 'PRE2', 'PRE3', 'PRE4', 'PRE5', 'PRE6', 'PRE7', 'PRE8')
 #		 'USR1', 'USR2', 'USR3', 'USR4', 'GM',   'GMDR', 'PDR',  'UDR')
 
-# globals (this is just here for documentation)
-global catalog, fileVersion, inputStream, mixingVoices, \
-	   sampleVoices, voices, waveformTypes
-
 def fileVersionPreMontage():
 	return fileVersion[0] < 4
 
 def strFromBytes(bytes):
 	return bytes.decode('ascii').rstrip('\x00').split('\x00')[0]
 
-def printPerformance(entryName, data):
-	print(entryName, len(data))
+def doPerformance(entryName, entryData, dataBlock):
+	global userPerfNames
 
-def doLiveSetBlock(entryName, data):
-	assert len(data) == DLST_DATA_LGTH
+	userPerfNames[entryData[2] - 32][entryData[3]] = entryName.split(':')[1]
+	pass
+
+	#print('USR{:1} {:4} {}'.format(entryData[2] - 31, entryData[3], entryName.split(':')[1], len(dataBlock)))
+	#for i in range(0, len(entryData)):
+	#	print('{:3}'.format(entryData[i]),end=' ')
+	#print()
+
+def doLiveSetBlock(entryName, entryData, dataBlock):
+	global userPerfNames
+
+	assert len(dataBlock) == DLST_DATA_LGTH
 	print(entryName)
 	pageOffset = 25
 	pages = []			# each page will be of form: [page name, [[performance data (5 bytes)], ...]
-	while pageOffset < len(data):
-		page = [strFromBytes(data[pageOffset : pageOffset + MONTAGE_NAME_MAX_LGTH])]
+	while pageOffset < len(dataBlock):
+		page = [strFromBytes(dataBlock[pageOffset : pageOffset + MONTAGE_NAME_MAX_LGTH])]
 		perfOffset = pageOffset + MONTAGE_NAME_MAX_LGTH + 23
 		pageEmpty = True
-		for i in range(0, 16):
-			perfData = struct.unpack('> B B B B ?', data[perfOffset : perfOffset + 5])
+		for _ in range(0, 16):
+			perfData = struct.unpack('> B B B B ?', dataBlock[perfOffset : perfOffset + 5])
 			if perfData[4]:
 				pageEmpty = False
 			page.append(perfData)
@@ -91,22 +97,31 @@ def doLiveSetBlock(entryName, data):
 	for page in pages:
 		print('   ' + page[0])
 		for perfData in page[1:]:
-			perfBank = perfData[1] + 1
-			perfNum = perfData[2] + 1
+			perfBank = perfData[1]
+			perfNum = perfData[2]
 			perfPresent = perfData[4]
 			print('      ', end='')
 			if perfPresent:
 				if perfBank >= 0 and perfBank < 32:
-					perfStr = 'PRE' + str(perfBank)
-				elif perfBank >= 33 and perfBank < 38:
-					perfStr = 'USR' + str(perfBank - 32)
-				elif perfBank >= 47 and perfBank < 55:
-					perfStr = 'LIB' + str(perfBank - 46)
+					perfStr = 'PRE' + str(perfBank + 1)
+					printName = False
+				elif perfBank >= 32 and perfBank < 37:
+					perfBank -= 32
+					perfStr = 'USR' + str(perfBank + 1)
+					printName = True
+				elif perfBank >= 46 and perfBank < 54:
+					perfBank -= 46
+					perfStr = 'LIB' + str(perfBank - 45)
+					printName = False
 				else:
 					perfStr = '???'
-				print('{:5}{:3}: {}' \
-					.format(perfStr, perfNum, \
-						'{0[0]:3} {0[1]:3} {0[2]:3} {0[3]:3} {0[4]:3}'.format(perfData)))
+					printName = False
+				print('{:5}{:3}'.format(perfStr, perfNum + 1), end='')
+				if printName:
+					print(' ' + userPerfNames[perfBank][perfNum])
+				else:
+					print()
+				#print(': {0[0]:3} {0[1]:3} {0[2]:3} {0[3]:3} {0[4]:3}'.format(perfData))
 			else:
 				print('---')
 
@@ -119,8 +134,8 @@ class BlockSpec:
 
 # when printing out all blocks, they will print out in this order
 blockSpecs = collections.OrderedDict((
-	('ls',  BlockSpec(b'ELST',	'Live Set Blocks',	doLiveSetBlock,	True)),		\
-	#('pf',  BlockSpec(b'EPFM',	'Performances',		printPerformance,	True)),		\
+	('pf',  BlockSpec(b'EPFM',	'Performances',		doPerformance,	True)),		\
+	('ls',  BlockSpec(b'ELST',	'Live Set Blocks',	doLiveSetBlock,	True)),			\
 	))
 
 def doBlock(blockSpec):
@@ -146,9 +161,9 @@ def doBlock(blockSpec):
 			struct.unpack('> 4s I 4x I', entryHdr)
 		entryDataLgth -= 8
 		entryData = inputStream.read(entryDataLgth)
-		assert entryId == BLOCK_ENTRY_ID, BLOCK_ENTRY_ID
-		entryNameBytes = entryData[14:].lstrip(b'\xFF').decode('ascii')
-		entryName = entryNameBytes.rstrip('\x00').split('\x00')[0]
+		assert entryId == ENTRY_BLOCK_ID, ENTRY_BLOCK_ID
+		entryNameBytes = entryData[14:].lstrip(b'\xFF')
+		entryName = entryNameBytes.decode('ascii').rstrip('\x00').split('\x00')[0]
 		if blockSpec.needsData:
 			entryPosn = inputStream.tell()
 			dataIdent = bytearray(blockSpec.ident)
@@ -156,23 +171,20 @@ def doBlock(blockSpec):
 			dataIdent = bytes(dataIdent)
 			inputStream.seek(catalog[dataIdent] + dataOffset)
 			dataHdr = inputStream.read(DATA_HDR_LGTH)
-			dataId, dataLgth = struct.unpack('> 4s I', dataHdr)
-			assert dataId == BLOCK_DATA_ID, BLOCK_DATA_ID
-			blockData = inputStream.read(dataLgth)
+			dataId, dataBlockLgth = struct.unpack('> 4s I', dataHdr)
+			assert dataId == DATA_BLOCK_ID, DATA_BLOCK_ID
+			dataBlock = inputStream.read(dataBlockLgth)
 			inputStream.seek(entryPosn)
 		else:
 			blockData = None
-		blockSpec.doFn(entryName, blockData)
+		blockSpec.doFn(entryName, entryData, dataBlock)
 
-def printMontageFile(fileName, selectedItems):
+def printLiveSets(fileName, selectedItems):
 	# globals
-	global catalog, fileVersion, inputStream, mixingVoices, \
-		   sampleVoices, voices, waveformTypes
+	global catalog, fileVersion, inputStream, userPerfNames
 
-	catalog =			{}
-	mixingVoices =		[]
-	sampleVoices =		[]
-	voices =			[]
+	catalog =		{}
+	userPerfNames =	[[''] * 128, [''] * 128, [''] * 128, [''] * 128, [''] * 128] 
 	
 	# open file
 	try:
@@ -208,7 +220,7 @@ def printMontageFile(fileName, selectedItems):
 				print('unknown data type: %s\n' % blockAbbrev)
 	
 	inputStream.close()
-	print('\n(Montage File v%s, printMontageFile v%s)\n' % (fileVersionStr, VERSION))
+	print('\n(Montage File v%s, printLiveSets v%s)\n' % (fileVersionStr, VERSION))
 
 help1Str = \
 '''
@@ -246,7 +258,7 @@ else:
 	else:
 		itemFlags = ()
 	#try:
-	#	printMontageFile(sys.argv[-1], itemFlags)
+	#	printLiveSets(sys.argv[-1], itemFlags)
 	#except Exception as e:
 	#	print('file problem (%s)' % e, file = sys.stderr)
-	printMontageFile(sys.argv[-1], itemFlags)
+	printLiveSets(sys.argv[-1], itemFlags)
