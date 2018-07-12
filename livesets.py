@@ -30,7 +30,7 @@ If not, see <http://www.gnu.org/licenses/>.
 
 import collections, os.path, struct, sys
 
-VERSION = '0.1'
+VERSION = '1.0'
 
 SONG_ABBREV =		'Sg'
 PATTERN_ABBREV =	'Pt'
@@ -52,13 +52,6 @@ FILE_HDR_LGTH =					   64
 MONTAGE_NAME_MAX_LGTH =			   20
 PERF_DATA_LGTH =				   27
 
-#bankNumbers = collections.Dict((
-#	('PRE1',  BlockSpec(b'ELST',	'Live Set Blocks',	printLiveSetBlock,	True)),		\
-#	#('pf',  BlockSpec(b'EPFM',	'Performances',		printPerformance,	True)),		\
-#	))
-#presetBankNames = ('PRE1', 'PRE2', 'PRE3', 'PRE4', 'PRE5', 'PRE6', 'PRE7', 'PRE8')
-#		 'USR1', 'USR2', 'USR3', 'USR4', 'GM',   'GMDR', 'PDR',  'UDR')
-
 def strFromBytes(bytes):
 	return bytes.decode('ascii').rstrip('\x00').split('\x00')[0]
 
@@ -66,12 +59,6 @@ def doPerformance(entryName, entryData, dataBlock):
 	global userPerfNames
 
 	userPerfNames[entryData[2] - 32][entryData[3]] = entryName.split(':')[1]
-	pass
-
-	#print('USR{:1} {:4} {}'.format(entryData[2] - 31, entryData[3], entryName.split(':')[1], len(dataBlock)))
-	#for i in range(0, len(entryData)):
-	#	print('{:3}'.format(entryData[i]),end=' ')
-	#print()
 
 def doLiveSetBlock(entryName, entryData, dataBlock):
 	global userPerfNames
@@ -110,23 +97,8 @@ def doLiveSetBlock(entryName, entryData, dataBlock):
 					perfStr = 'USR{:02}'.format(perfBank + 1)
 					printName = True
 				elif perfBank >= 40 and perfBank < 76:
-					if perfBank < 45:
-						libNum = 1
-					elif perfBank < 50:
-						libNum = 2
-					elif perfBank < 55:
-						libNum = 3
-					elif perfBank < 60:
-						libNum = 4
-					elif perfBank < 65:
-						libNum = 5
-					elif perfBank < 70:
-						libNum = 6
-					elif perfBank < 75:
-						libNum = 7
-					else:
-						libNum = 8
-					perfStr = 'LIB{}({})'.format(libNum)
+					bank = perfBank - 40
+					perfStr = 'LIB{}({})'.format(int(bank / 5) + 1, (bank % 5) + 1)
 				else:
 					perfStr = '???'
 					printNum = False
@@ -251,7 +223,7 @@ To print Live Sets, type:
 
 If you want to save the output into a text file, do this:
 
-   python livesets.py ... > outputFileName.txt
+   python livesets.py montageFileName > textFileName
 '''
 
 help2Str = \
@@ -264,11 +236,11 @@ the Free Software Foundation, either version 3 of the License, or
 
 if len(sys.argv) == 1:
 	# print help information
-	print('livesets version %s\n' % VERSION)
+	print('livesets version {}\n'.format(VERSION))
 	print('by Michael Trigoboff\nmtrigoboff@comcast.net\nhttp://spot.pcc.edu/~mtrigobo')
 	print(help1Str)
 	#for blockFlag, blockSpec in blockSpecs.items():
-	#	print('   %s    %s' % (blockFlag, blockSpec.name.lower()))
+	#	print('   {}    {}'.format(blockFlag, blockSpec.name.lower()))
 	print(help2Str)
 	print()
 else:
