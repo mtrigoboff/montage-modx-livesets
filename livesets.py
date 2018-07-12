@@ -102,21 +102,23 @@ def doLiveSetBlock(entryName, entryData, dataBlock):
 			perfPresent = perfData[4]
 			print('      ', end='')
 			if perfPresent:
+				printNum = True
+				printName = False
 				if perfBank >= 0 and perfBank < 32:
-					perfStr = 'PRE' + str(perfBank + 1)
-					printName = False
+					perfStr = 'PRE{:02}'.format(perfBank + 1)
 				elif perfBank >= 32 and perfBank < 37:
 					perfBank -= 32
-					perfStr = 'USR' + str(perfBank + 1)
+					perfStr = 'USR{:02}'.format(perfBank + 1)
 					printName = True
-				elif perfBank >= 46 and perfBank < 54:
-					perfBank -= 46
-					perfStr = 'LIB' + str(perfBank - 45)
-					printName = False
+				elif perfBank >= 40 and perfBank < 76:
+					perfStr = 'LIB'
+					printNum = False
 				else:
 					perfStr = '???'
-					printName = False
-				print('{:5}{:3}'.format(perfStr, perfNum + 1), end='')
+					printNum = False
+				print('{:5}'.format(perfStr), end=' ')
+				if printNum:
+					print('{:03}'.format(perfNum + 1), end='')
 				if printName:
 					print(' ' + userPerfNames[perfBank][perfNum])
 				else:
@@ -184,7 +186,8 @@ def printLiveSets(fileName, selectedItems):
 	global catalog, fileVersion, inputStream, userPerfNames
 
 	catalog =		{}
-	userPerfNames =	[[''] * 128, [''] * 128, [''] * 128, [''] * 128, [''] * 128] 
+	#userPerfNames =	[[''] * 128, [''] * 128, [''] * 128, [''] * 128, [''] * 128]
+	userPerfNames =	[['' for _ in range(128)] for _ in range(5)]
 	
 	# open file
 	try:
@@ -234,8 +237,7 @@ If you want to save the output into a text file, do this:
 '''
 
 help2Str = \
-'''
-Copyright 2012-2018 Michael Trigoboff.
+'''Copyright 2012-2018 Michael Trigoboff.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -247,8 +249,8 @@ if len(sys.argv) == 1:
 	print('livesets version %s\n' % VERSION)
 	print('by Michael Trigoboff\nmtrigoboff@comcast.net\nhttp://spot.pcc.edu/~mtrigobo')
 	print(help1Str)
-	for blockFlag, blockSpec in blockSpecs.items():
-		print('   %s    %s' % (blockFlag, blockSpec.name.lower()))
+	#for blockFlag, blockSpec in blockSpecs.items():
+	#	print('   %s    %s' % (blockFlag, blockSpec.name.lower()))
 	print(help2Str)
 	print()
 else:
