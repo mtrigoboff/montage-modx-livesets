@@ -77,7 +77,7 @@ def doLiveSetBlock(entryName, entryData, dataBlock):
 	global userPerfNames
 
 	assert len(dataBlock) == DLST_DATA_LGTH
-	print(entryName)
+	print(entryName + '\n')
 	pageOffset = 25
 	pages = []			# each page will be of form: [page name, [[performance data (5 bytes)], ...]
 	while pageOffset < len(dataBlock):
@@ -94,7 +94,7 @@ def doLiveSetBlock(entryName, entryData, dataBlock):
 			pages.append(page)
 		pageOffset += DLST_PAGE_LGTH
 	for page in pages:
-		print('   ' + page[0])
+		print('   ' + page[0] + '\n')
 		for perfData in page[1:]:
 			perfBank = perfData[1]
 			perfNum = perfData[2]
@@ -110,8 +110,23 @@ def doLiveSetBlock(entryName, entryData, dataBlock):
 					perfStr = 'USR{:02}'.format(perfBank + 1)
 					printName = True
 				elif perfBank >= 40 and perfBank < 76:
-					perfStr = 'LIB'
-					printNum = False
+					if perfBank < 45:
+						libNum = 1
+					elif perfBank < 50:
+						libNum = 2
+					elif perfBank < 55:
+						libNum = 3
+					elif perfBank < 60:
+						libNum = 4
+					elif perfBank < 65:
+						libNum = 5
+					elif perfBank < 70:
+						libNum = 6
+					elif perfBank < 75:
+						libNum = 7
+					else:
+						libNum = 8
+					perfStr = 'LIB{}({})'.format(libNum)
 				else:
 					perfStr = '???'
 					printNum = False
@@ -125,6 +140,7 @@ def doLiveSetBlock(entryName, entryData, dataBlock):
 				#print(': {0[0]:3} {0[1]:3} {0[2]:3} {0[3]:3} {0[4]:3}'.format(perfData))
 			else:
 				print('---')
+		print()
 
 class BlockSpec:
 	def __init__(self, ident, doFn, needsData):
