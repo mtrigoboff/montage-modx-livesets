@@ -36,6 +36,8 @@ SONG_ABBREV =		'Sg'
 PATTERN_ABBREV =	'Pt'
 
 FILE_HDR_ID =		b'YAMAHA-YSFC'
+FILE_VERSION_MIN =	(4, 0, 4)
+
 ENTRY_BLOCK_ID =	b'Entr'
 DATA_BLOCK_ID =		b'Data'
 
@@ -128,16 +130,15 @@ def doLiveSetBlock(entryName, entryData, dataBlock):
 				print('---')
 
 class BlockSpec:
-	def __init__(self, ident, name, doFn, needsData):
+	def __init__(self, ident, doFn, needsData):
 		self.ident =			ident
-		self.name =				name
 		self.doFn =				doFn			# what to do with each item of this type
 		self.needsData =		needsData
 
 # when printing out all blocks, they will print out in this order
 blockSpecs = collections.OrderedDict((
-	('pf',  BlockSpec(b'EPFM',	'Performances',		doPerformance,	True)),		\
-	('ls',  BlockSpec(b'ELST',	'Live Set Blocks',	doLiveSetBlock,	True)),			\
+	('pf',  BlockSpec(b'EPFM',	doPerformance,	False)),		\
+	('ls',  BlockSpec(b'ELST',	doLiveSetBlock,	True)),			\
 	))
 
 def doBlock(blockSpec):
@@ -146,8 +147,7 @@ def doBlock(blockSpec):
 	try:
 		inputStream.seek(catalog[blockSpec.ident])
 	except:
-		print('no data of type: %s\n' % (blockSpec.name))
-# 		print('no data of type: %s(%s)\n' % (blockSpec.name, blockSpec.ident.decode('ascii')))
+		print('no data of type: {}\n'.format(blockSpec.name))
 		return
 
 	blockHdr = inputStream.read(BLOCK_HDR_LGTH)
@@ -155,8 +155,6 @@ def doBlock(blockSpec):
 
 	assert blockIdData == blockSpec.ident, blockSpec.ident
 	
-	print(blockSpec.name)
-
 	for i in range(0, nEntries):
 		entryHdr = inputStream.read(ENTRY_HDR_LGTH)
 		entryId, entryDataLgth, dataOffset = \
@@ -178,7 +176,7 @@ def doBlock(blockSpec):
 			dataBlock = inputStream.read(dataBlockLgth)
 			inputStream.seek(entryPosn)
 		else:
-			blockData = None
+			dataBlock = None
 		blockSpec.doFn(entryName, entryData, dataBlock)
 
 def printLiveSets(fileName, selectedItems):
@@ -186,7 +184,6 @@ def printLiveSets(fileName, selectedItems):
 	global catalog, fileVersion, inputStream, userPerfNames
 
 	catalog =		{}
-	#userPerfNames =	[[''] * 128, [''] * 128, [''] * 128, [''] * 128, [''] * 128]
 	userPerfNames =	[['' for _ in range(128)] for _ in range(5)]
 	
 	# open file
@@ -204,13 +201,21 @@ def printLiveSets(fileName, selectedItems):
 	fileVersionStr = fileVersionBytes.decode('ascii').rstrip('\x00')
 	fileVersion = tuple(map(int, fileVersionStr.split('.')))
 	
+	if fileVersion[0] < FILE_VERSION_MIN[0] or \
+	   fileVersion[1] < FILE_VERSION_MIN[1] or \
+	   fileVersion[2] < FILE_VERSION_MIN[2]:
+		raise Exception('bad Montage file version {}.{}.{}, needs to be at least {}.{}.{}'
+				  .format(fileVersion[0], fileVersion[1], fileVersion[2],
+						  FILE_VERSION_MIN[0], FILE_VERSION_MIN[1], FILE_VERSION_MIN[2]))
+
 	# build catalog
 	for _ in range(0, int(catalogSize / CATALOG_ENTRY_LGTH)):
 		entry = inputStream.read(CATALOG_ENTRY_LGTH)
 		entryId, offset = struct.unpack('> 4s I', entry)
 		catalog[entryId] = offset
 
-	print('%s\n' % os.path.basename(fileName))
+	print('{} (livesets v{}, Montage file v{})\n'.format(os.path.basename(fileName), VERSION, fileVersionStr))
+
 	if len(selectedItems) == 0:					# print everything
 		for blockSpec in blockSpecs.values():
 			doBlock(blockSpec)
@@ -223,7 +228,7 @@ def printLiveSets(fileName, selectedItems):
 				print('unknown data type: %s\n' % blockAbbrev)
 	
 	inputStream.close()
-	print('\n(Montage File v%s, printLiveSets v%s)\n' % (fileVersionStr, VERSION))
+	print()
 
 help1Str = \
 '''
@@ -259,8 +264,8 @@ else:
 		itemFlags = sys.argv[1:-1]
 	else:
 		itemFlags = ()
-	#try:
-	#	printLiveSets(sys.argv[-1], itemFlags)
-	#except Exception as e:
-	#	print('file problem (%s)' % e, file = sys.stderr)
-	printLiveSets(sys.argv[-1], itemFlags)
+	try:
+		printLiveSets(sys.argv[-1], itemFlags)
+	except Exception as e:
+		print('*** {}\n'.format(e), file=sys.stderr)
+
