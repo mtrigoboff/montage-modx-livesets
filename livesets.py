@@ -1,6 +1,6 @@
 
 '''
-Prints out the contents of a Motif file.
+Prints out the live sets from a Montage file.
 
 Based on the excellent work done by Chris Webb, who did a lot of helpful
 reverse engineering on the Motif file format, and wrote Python code
@@ -30,7 +30,7 @@ If not, see <http://www.gnu.org/licenses/>.
 
 import collections, os.path, struct, sys
 
-VERSION = '1.0'
+VERSION = '1.01'
 
 SONG_ABBREV =		'Sg'
 PATTERN_ABBREV =	'Pt'
