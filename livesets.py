@@ -227,7 +227,7 @@ If you want to save the output into a text file, do this:
 '''
 
 help2Str = \
-'''Copyright 2012-2018 Michael Trigoboff.
+'''Copyright 2012-2021 Michael Trigoboff.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -236,7 +236,7 @@ the Free Software Foundation, either version 3 of the License, or
 
 if len(sys.argv) == 1:
 	# print help information
-	print('livesets version {}\n'.format(VERSION))
+	print(f'livesets version {VERSION}\n')
 	print('by Michael Trigoboff\nmtrigoboff@comcast.net\nhttp://spot.pcc.edu/~mtrigobo')
 	print(help1Str)
 	#for blockFlag, blockSpec in blockSpecs.items():
