@@ -44,9 +44,9 @@ DATA_BLOCK_ID =		b'Data'
 BLOCK_HDR_LGTH =				   12
 CATALOG_ENTRY_LGTH =			 	8
 DATA_HDR_LGTH =						8	# block header length
-DLST_DATA_LGTH =			   0x1C69
+DLST_DATA_LGTH =			   0x1F69
 DLST_DATA_HDR_LGTH =				8
-DLST_PAGE_LGTH =				0x1C5
+DLST_PAGE_LGTH =			   0x11F5
 ENTRY_HDR_LGTH =				   16
 FILE_HDR_LGTH =					   64
 MONTAGE_NAME_MAX_LGTH =			   20
@@ -63,15 +63,15 @@ def doPerformance(entryName, entryData, dataBlock):
 def doLiveSetBlock(entryName, entryData, dataBlock):
 	global userPerfNames
 
-	assert len(dataBlock) == DLST_DATA_LGTH
+	#assert len(dataBlock) == DLST_DATA_LGTH
 	print(entryName + '\n')
 	pageOffset = 25
 	pages = []			# each page will be of form: [page name, [[performance data (5 bytes)], ...]
-	while pageOffset < len(dataBlock):
+	for _ in range(16):
 		page = [strFromBytes(dataBlock[pageOffset : pageOffset + MONTAGE_NAME_MAX_LGTH])]
 		perfOffset = pageOffset + MONTAGE_NAME_MAX_LGTH + 23
 		pageEmpty = True
-		for _ in range(0, 16):
+		for _ in range(16):
 			perfData = struct.unpack('> B B B B ?', dataBlock[perfOffset : perfOffset + 5])
 			if perfData[4]:
 				pageEmpty = False
@@ -90,13 +90,13 @@ def doLiveSetBlock(entryName, entryData, dataBlock):
 			if perfPresent:
 				printNum = True
 				printName = False
-				if perfBank >= 0 and perfBank < 32:
+				if 0 <= perfBank < 32:
 					perfStr = 'PRE{:02}'.format(perfBank + 1)
-				elif perfBank >= 32 and perfBank < 37:
+				elif 32 <= perfBank < 37:
 					perfBank -= 32
 					perfStr = 'USR{:02}'.format(perfBank + 1)
 					printName = True
-				elif perfBank >= 40 and perfBank < 76:
+				elif 40 <= perfBank < 76:
 					bank = perfBank - 40
 					perfStr = 'LIB{}({})'.format(int(bank / 5) + 1, (bank % 5) + 1)
 				else:
@@ -157,20 +157,20 @@ def doBlock(blockSpec):
 			inputStream.seek(catalog[dataIdent] + dataOffset)
 			dataHdr = inputStream.read(DATA_HDR_LGTH)
 			dataId, dataBlockLgth = struct.unpack('> 4s I', dataHdr)
-			assert dataId == DATA_BLOCK_ID, DATA_BLOCK_ID
+			# assert dataId == DATA_BLOCK_ID, DATA_BLOCK_ID
 			dataBlock = inputStream.read(dataBlockLgth)
 			inputStream.seek(entryPosn)
 		else:
 			dataBlock = None
 		blockSpec.doFn(entryName, entryData, dataBlock)
 
-def printLiveSets(fileName, selectedItems):
+def printLiveSets(fileName):
 	# globals
 	global catalog, fileVersion, inputStream, userPerfNames
 
 	catalog =		{}
 	userPerfNames =	[['' for _ in range(128)] for _ in range(5)]
-	
+
 	# open file
 	try:
 		inputStream = open(fileName, 'rb')
@@ -201,17 +201,17 @@ def printLiveSets(fileName, selectedItems):
 
 	print('{} (livesets v{}, Montage file v{})\n'.format(os.path.basename(fileName), VERSION, fileVersionStr))
 
-	if len(selectedItems) == 0:					# print everything
-		for blockSpec in blockSpecs.values():
-			doBlock(blockSpec)
-	else:										# print selectedItems
-		# cmd line specifies what to print
-		for blockAbbrev in selectedItems:
-			try:
-				doBlock(blockSpecs[blockAbbrev])
-			except KeyError:
-				print('unknown data type: %s\n' % blockAbbrev)
-	
+	for blockSpec in blockSpecs.values():
+		doBlock(blockSpec)
+
+	# else:										# print selectedItems
+	# 	# cmd line specifies what to print
+	# 	for blockAbbrev in selectedItems:
+	# 		try:
+	# 			doBlock(blockSpecs[blockAbbrev])
+	# 		except KeyError:
+	# 			print('unknown data type: %s\n' % blockAbbrev)
+
 	inputStream.close()
 	print()
 
@@ -245,12 +245,8 @@ if len(sys.argv) == 1:
 	print()
 else:
 	# process file
-	if len(sys.argv) > 2:
-		itemFlags = sys.argv[1:-1]
-	else:
-		itemFlags = ()
 	try:
-		printLiveSets(sys.argv[-1], itemFlags)
+		printLiveSets(sys.argv[1])
 	except Exception as e:
-		print('*** {}\n'.format(e), file=sys.stderr)
+		print(f'*** {e}\n', file=sys.stderr)
 
