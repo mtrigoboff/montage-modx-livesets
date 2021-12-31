@@ -1,6 +1,6 @@
 
 '''
-Prints out the live sets from a Montage file.
+Prints out the live sets from a Montage user file (X7U).
 
 Based on the excellent work done by Chris Webb, who did a lot of helpful
 reverse engineering on the Motif file format, and wrote Python code
@@ -28,7 +28,7 @@ along with this program as file gpl.txt.
 If not, see <http://www.gnu.org/licenses/>.
 '''
 
-import os.path, struct, sys
+import os.path, struct
 
 VERSION = '1.1'
 
@@ -200,39 +200,3 @@ def printLiveSets(fileName):
 
 	inputStream.close()
 	print()
-
-help1Str = \
-'''
-To print Live Sets, type:
-
-   python livesets.py montageFileName
-
-If you want to save the output into a text file, do this:
-
-   python livesets.py montageFileName > textFileName
-'''
-
-help2Str = \
-'''Copyright 2012-2021 Michael Trigoboff.
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.'''
-
-if len(sys.argv) == 1:
-	# print help information
-	print(f'livesets version {VERSION}\n')
-	print('by Michael Trigoboff\nmtrigoboff@comcast.net\nhttp://spot.pcc.edu/~mtrigobo')
-	print(help1Str)
-	#for blockFlag, blockSpec in blockSpecs.items():
-	#	print('   {}    {}'.format(blockFlag, blockSpec.name.lower()))
-	print(help2Str)
-	print()
-else:
-	# process file
-	try:
-		printLiveSets(sys.argv[1])
-	except Exception as e:
-		print(f'*** {e}\n', file=sys.stderr)
-
