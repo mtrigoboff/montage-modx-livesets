@@ -50,7 +50,7 @@ DLST_PAGE_LGTH =			   0x11F5
 ENTRY_HDR_LGTH =				   16
 FILE_HDR_LGTH =					   64
 MONTAGE_NAME_MAX_LGTH =			   20
-PERF_DATA_LGTH =				   27
+PERF_DATA_LGTH =				  286
 
 def strFromBytes(bytes):
 	return bytes.decode('ascii').rstrip('\x00').split('\x00')[0]
@@ -201,16 +201,8 @@ def printLiveSets(fileName):
 
 	print('{} (livesets v{}, Montage file v{})\n'.format(os.path.basename(fileName), VERSION, fileVersionStr))
 
-	for blockSpec in blockSpecs.values():
-		doBlock(blockSpec)
-
-	# else:										# print selectedItems
-	# 	# cmd line specifies what to print
-	# 	for blockAbbrev in selectedItems:
-	# 		try:
-	# 			doBlock(blockSpecs[blockAbbrev])
-	# 		except KeyError:
-	# 			print('unknown data type: %s\n' % blockAbbrev)
+	doBlock(blockSpecs['pf'])
+	doBlock(blockSpecs['ls'])
 
 	inputStream.close()
 	print()
