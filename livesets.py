@@ -30,20 +30,17 @@ If not, see <http://www.gnu.org/licenses/>.
 
 import os.path, struct, sys
 
-VERSION = '1.01'
-
-SONG_ABBREV =		'Sg'
-PATTERN_ABBREV =	'Pt'
+VERSION = '1.1'
 
 FILE_HDR_ID =		b'YAMAHA-YSFC'
-FILE_VERSION_MIN =	(4, 0, 4)
+FILE_VERSION_MIN =	(4, 0, 5)
 
 ENTRY_BLOCK_ID =	b'Entr'
 DATA_BLOCK_ID =		b'Data'
 
 BLOCK_HDR_LGTH =				   12
 CATALOG_ENTRY_LGTH =			 	8
-DATA_HDR_LGTH =						8	# block header length
+DATA_HDR_LGTH =						8
 DLST_DATA_LGTH =			   0x1F69
 DLST_DATA_HDR_LGTH =				8
 DLST_PAGE_LGTH =			   0x11F5
@@ -91,27 +88,27 @@ def doLiveSetBlock(entryNames, entryData, dataBlock):
 				printNum = True
 				printName = False
 				if 0 <= perfBank < 32:
-					perfStr = 'PRE{:02}'.format(perfBank + 1)
+					perfStr = f'PRE{perfBank + 1:02}'
 				elif 32 <= perfBank < 37:
 					perfBank -= 32
-					perfStr = 'USR{:02}'.format(perfBank + 1)
+					perfStr = f'USR{perfBank + 1:02}'
 					printName = True
 				elif 40 <= perfBank < 76:
 					bank = perfBank - 40
-					perfStr = 'LIB{}({})'.format(int(bank / 5) + 1, (bank % 5) + 1)
+					perfStr = f'LIB{int(bank / 5) + 1}({(bank % 5) + 1})'
 				else:
 					perfStr = '???'
 					printNum = False
-				print('{:5}'.format(perfStr), end=' ')
 				if printNum:
-					print('{:03}'.format(perfNum + 1), end='')
+					perfStr += f':{perfNum + 1:03}'
+				print(f'{perfStr:12}', end='')
 				if printName:
-					print(' ' + userPerfNames[perfBank][perfNum])
+					print(userPerfNames[perfBank][perfNum])
 				else:
 					print()
 				#print(': {0[0]:3} {0[1]:3} {0[2]:3} {0[3]:3} {0[4]:3}'.format(perfData))
 			else:
-				print('---')
+				print('---         ---')
 		print()
 
 class BlockSpec:
