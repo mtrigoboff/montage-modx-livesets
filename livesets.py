@@ -28,7 +28,7 @@ along with this program as file gpl.txt.
 If not, see <http://www.gnu.org/licenses/>.
 '''
 
-import collections, os.path, struct, sys
+import os.path, struct, sys
 
 VERSION = '1.01'
 
@@ -52,19 +52,19 @@ FILE_HDR_LGTH =					   64
 MONTAGE_NAME_MAX_LGTH =			   20
 PERF_DATA_LGTH =				  286
 
-def strFromBytes(bytes):
-	return bytes.decode('ascii').rstrip('\x00').split('\x00')[0]
+def strFromBytes(strBytes):
+	return strBytes.decode('ascii').rstrip('\x00').split('\x00')[0]
 
-def doPerformance(entryName, entryData, dataBlock):
+def doPerformance(entryNames, entryData, dataBlock):
 	global userPerfNames
 
-	userPerfNames[entryData[2] - 32][entryData[3]] = entryName.split(':')[1]
+	userPerfNames[entryData[2] - 32][entryData[3]] = entryNames[1]
 
-def doLiveSetBlock(entryName, entryData, dataBlock):
+def doLiveSetBlock(entryNames, entryData, dataBlock):
 	global userPerfNames
 
 	#assert len(dataBlock) == DLST_DATA_LGTH
-	print(entryName + '\n')
+	print(entryNames[0] + '\n')
 	pageOffset = 25
 	pages = []			# each page will be of form: [page name, [[performance data (5 bytes)], ...]
 	for _ in range(16):
@@ -120,11 +120,8 @@ class BlockSpec:
 		self.doFn =				doFn			# what to do with each item of this type
 		self.needsData =		needsData
 
-# when printing out all blocks, they will print out in this order
-blockSpecs = collections.OrderedDict((
-	('pf',  BlockSpec(b'EPFM',	doPerformance,	False)),		\
-	('ls',  BlockSpec(b'ELST',	doLiveSetBlock,	True)),			\
-	))
+perfBlockSpec =		BlockSpec(b'EPFM',	doPerformance,	False)
+liveSetBlockSpec =	BlockSpec(b'ELST',	doLiveSetBlock,	True)
 
 def doBlock(blockSpec):
 	global catalog
@@ -148,7 +145,7 @@ def doBlock(blockSpec):
 		entryData = inputStream.read(entryDataLgth)
 		assert entryId == ENTRY_BLOCK_ID, ENTRY_BLOCK_ID
 		entryNameBytes = entryData[14:].lstrip(b'\xFF')
-		entryName = entryNameBytes.decode('ascii').rstrip('\x00').split('\x00')[0]
+		entryNames = entryNameBytes.decode('ascii').rstrip('\x00').split('\x00')
 		if blockSpec.needsData:
 			entryPosn = inputStream.tell()
 			dataIdent = bytearray(blockSpec.ident)
@@ -162,7 +159,7 @@ def doBlock(blockSpec):
 			inputStream.seek(entryPosn)
 		else:
 			dataBlock = None
-		blockSpec.doFn(entryName, entryData, dataBlock)
+		blockSpec.doFn(entryNames, entryData, dataBlock)
 
 def printLiveSets(fileName):
 	# globals
@@ -201,8 +198,8 @@ def printLiveSets(fileName):
 
 	print('{} (livesets v{}, Montage file v{})\n'.format(os.path.basename(fileName), VERSION, fileVersionStr))
 
-	doBlock(blockSpecs['pf'])
-	doBlock(blockSpecs['ls'])
+	doBlock(perfBlockSpec)
+	doBlock(liveSetBlockSpec)
 
 	inputStream.close()
 	print()
